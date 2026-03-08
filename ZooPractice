@@ -1,11 +1,12 @@
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <map>
-#include <fstream>
 #include <sstream>
+#include <algorithm>
 
-// Base Class
+// --- Base Class ---
 class Animal {
 protected:
     std::string name;
@@ -13,93 +14,121 @@ protected:
     std::string species;
 
 public:
+    // Constructor
     Animal(std::string n, int a, std::string s) : name(n), age(a), species(s) {}
-    virtual ~Animal() {} // Virtual destructor for proper cleanup
+    
+    // Virtual destructor: Essential for deleting subclasses via base pointers
+    virtual ~Animal() {}
 
-    // Getters
+    // Getters and Setters
     std::string getName() const { return name; }
+    void setName(std::string n) { name = n; }
+    
     int getAge() const { return age; }
+    void setAge(int a) { age = a; }
+    
     std::string getSpecies() const { return species; }
 
-    // Pure virtual function makes this an abstract base class
-    virtual std::string getOrigin() const = 0; 
+    // Pure virtual function: Makes this an Abstract Class
+    virtual std::string getHabitat() const = 0;
 };
 
-// Subclasses
+// --- Subclasses ---
 class Hyena : public Animal {
 public:
     Hyena(std::string n, int a) : Animal(n, a, "Hyena") {}
-    std::string getOrigin() const override { return "Africa/Asia"; }
+    std::string getHabitat() const override { return "Hyena Habitat"; }
 };
 
 class Lion : public Animal {
 public:
     Lion(std::string n, int a) : Animal(n, a, "Lion") {}
-    std::string getOrigin() const override { return "Sub-Saharan Africa"; }
+    std::string getHabitat() const override { return "Lion Habitat"; }
 };
 
 class Tiger : public Animal {
 public:
     Tiger(std::string n, int a) : Animal(n, a, "Tiger") {}
-    std::string getOrigin() const override { return "Asia"; }
+    std::string getHabitat() const override { return "Tiger Habitat"; }
 };
 
 class Bear : public Animal {
 public:
     Bear(std::string n, int a) : Animal(n, a, "Bear") {}
-    std::string getOrigin() const override { return "Global/North America"; }
+    std::string getHabitat() const override { return "Bear Habitat"; }
 };
-int main() {
-    std::vector<Animal*> zoo;
-    std::map<std::string, int> speciesCount;
 
-    std::ifstream inFile("arrivingAnimals.txt");
-    if (!inFile) {
-        std::cerr << "Error: Could not open arrivingAnimals.txt" << std::endl;
+// --- Helper Function: String Parsing ---
+// This handles the "4 year old female hyena..." formatting
+Animal* createAnimalFromLine(const std::string& line) {
+    std::stringstream ss(line);
+    int age;
+    std::string temp;
+    
+    // Simple parse: extract first word as age
+    ss >> age; 
+    
+    // Search the whole line for the species keywords
+    std::string lowerLine = line;
+    std::transform(lowerLine.begin(), lowerLine.end(), lowerLine.begin(), ::tolower);
+
+    if (lowerLine.find("hyena") != std::string::npos) return new Hyena("Kamari", age);
+    if (lowerLine.find("lion") != std::string::npos) return new Lion("Kiara", age);
+    if (lowerLine.find("tiger") != std::string::npos) return new Tiger("Shere Khan", age);
+    if (lowerLine.find("bear") != std::string::npos) return new Bear("Baloo", age);
+    
+    return nullptr;
+}
+
+// --- Main Program ---
+int main() {
+    std::vector<Animal*> zooInventory;
+    std::map<std::string, int> speciesStats;
+
+    // 1. File Input
+    std::ifstream inputFile("arrivingAnimals.txt");
+    if (!inputFile) {
+        std::cerr << "Error: Create 'arrivingAnimals.txt' before running." << std::endl;
         return 1;
     }
 
     std::string line;
-    while (std::getline(inFile, line)) {
-        // Example line: 4 year old female hyena, born in spring, tan color, 70 pounds, from Friguia Park, Tunisia
-        std::stringstream ss(line);
-        std::string ageStr, species;
+    while (std::getline(inputFile, line)) {
+        if (line.empty()) continue;
         
-        // Simplified parsing logic for practice
-        ss >> ageStr; // "4"
-        int age = std::stoi(ageStr);
-        
-        // Logic to find species in the string (simplified)
-        if (line.find("hyena") != std::string::npos) {
-            zoo.push_back(new Hyena("Unnamed Hyena", age));
-            speciesCount["Hyena"]++;
-        } else if (line.find("lion") != std::string::npos) {
-            zoo.push_back(new Lion("Unnamed Lion", age));
-            speciesCount["Lion"]++;
+        Animal* newArrival = createAnimalFromLine(line);
+        if (newArrival) {
+            zooInventory.push_back(newArrival);
+            speciesStats[newArrival->getSpecies()]++;
         }
-        // ... Repeat for Tiger and Bear
     }
-    inFile.close();
+    inputFile.close();
 
-    // Generate Report
-    std::ofstream outFile("newAnimals.txt");
-    outFile << "ZOO POPULATION REPORT\n";
-    outFile << "---------------------\n";
+    // 2. File Output (The Report)
+    std::ofstream outputFile("newAnimals.txt");
+    outputFile << "--- Zoo Population Report ---\n\n";
 
-    for (auto const& [species, count] : speciesCount) {
-        outFile << species << " Habitat (Total: " << count << "):\n";
-        for (Animal* animal : zoo) {
-            if (animal->getSpecies() == species) {
-                outFile << "- " << animal->getName() << "; " 
-                        << animal->getAge() << " years old; Origin: " 
-                        << animal->getOrigin() << "\n";
+    // Use a nested loop to group by species
+    for (auto const& [species, count] : speciesStats) {
+        outputFile << species << " Habitat (Total: " << count << ")\n";
+        outputFile << "----------------------------\n";
+        
+        for (Animal* a : zooInventory) {
+            if (a->getSpecies() == species) {
+                outputFile << "Name: " << a->getName() << " | Age: " 
+                           << a->getAge() << " | Enclosure: " << a->getHabitat() << "\n";
             }
         }
-        outFile << "\n";
+        outputFile << "\n";
     }
+    
+    outputFile.close();
+    std::cout << "Report generated successfully in newAnimals.txt" << std::endl;
 
-    // Clean up memory
-    for (Animal* a : zoo) delete a;
+    // 3. Memory Cleanup (Crucial for C++)
+    for (Animal* a : zooInventory) {
+        delete a;
+    }
 
     return 0;
 }
