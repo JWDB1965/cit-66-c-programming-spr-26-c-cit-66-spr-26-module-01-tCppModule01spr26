@@ -1,0 +1,208 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <sstream>
+#include <algorithm>
+
+using namespace std;
+
+// ==========================================
+// 1. CLASS HIERARCHY (Inheritance & Polymorphism)
+// ==========================================
+class Animal {
+public:
+    string name;
+    string species;
+    int age;
+    string gender;
+
+    Animal(string n, string s, int a, string g) : name(n), species(s), age(a), gender(g) {}
+    virtual ~Animal() {} // Vital for cleaning up derived classes
+    virtual string makeNoise() = 0; // Pure virtual function
+};
+
+class Hyena : public Animal {
+public:
+    Hyena(string n, int a, string g) : Animal(n, "hyena", a, g) {}
+    string makeNoise() override { return "Hee-hee-hee!"; }
+};
+
+class Lion : public Animal {
+public:
+    Lion(string n, int a, string g) : Animal(n, "lion", a, g) {}
+    string makeNoise() override { return "Roar!"; }
+};
+
+class Tiger : public Animal {
+public:
+    Tiger(string n, int a, string g) : Animal(n, "tiger", a, g) {}
+    string makeNoise() override { return "Grrr-roar!"; }
+};
+
+class Bear : public Animal {
+public:
+    Bear(string n, int a, string g) : Animal(n, "bear", a, g) {}
+    string makeNoise() override { return "Growl-huff!"; }
+};
+
+// ==========================================
+// 2. CUSTOM LINKED LIST (Data Structure)
+// ==========================================
+struct Node {
+    Animal* data;
+    Node* next;
+    Node(Animal* a) : data(a), next(nullptr) {}
+};
+
+class AnimalList {
+private:
+    Node* head;
+public:
+    AnimalList() : head(nullptr) {}
+    
+    void addAnimal(Animal* a) {
+        Node* newNode = new Node(a);
+        if (!head) head = newNode;
+        else {
+            Node* temp = head;
+            while (temp->next) temp = temp->next;
+            temp->next = newNode;
+        }
+    }
+
+    void generateReport(string filename) {
+        ofstream outFile(filename);
+        if (!outFile) return;
+        
+        Node* temp = head;
+        outFile << "--- Zoo Inventory Report ---" << endl;
+        while (temp) {
+            outFile << "Name: " << temp->data->name 
+                    << " | Species: " << temp->data->species 
+                    << " | Age: " << temp->data->age 
+                    << " | Gender: " << temp->data->gender 
+                    << " | Sound: " << temp->data->makeNoise() << endl;
+            temp = temp->next;
+        }
+        outFile.close();
+    }
+
+    ~AnimalList() {
+        Node* current = head;
+        while (current) {
+            Node* next = current->next;
+            delete current->data; // Clean up the Animal object (Lion, Tiger, etc.)
+            delete current;       // Clean up the Node itself
+            current = next;
+        }
+    }
+};
+
+// ==========================================
+// 3. UTILITY & PARSING LOGIC
+// ==========================================
+map<string, vector<string>> nameRepo;
+
+// Helper to trim whitespace from strings
+string trim(const string& s) {
+    size_t first = s.find_first_not_of(" \t\n\r");
+    if (first == string::npos) return "";
+    size_t last = s.find_last_not_of(" \t\n\r");
+    return s.substr(first, (last - first + 1));
+}
+
+void loadNames(string filename) {
+    ifstream file(filename);
+    if (!file) {
+        cout << "Warning: " << filename << " not found. Using defaults." << endl;
+        nameRepo["hyena"] = {"Shenzi", "Banzai"};
+        nameRepo["lion"] = {"Simba", "Nala"};
+        return;
+    }
+    string line, currentSpecies;
+    while (getline(file, line)) {
+        if (line.find("Names") != string::npos) {
+            currentSpecies = trim(line.substr(0, line.find(" ")));
+            for (auto &c : currentSpecies) c = tolower(c);
+        } else if (!line.empty()) {
+            stringstream ss(line);
+            string name;
+            while (getline(ss, name, ',')) {
+                nameRepo[currentSpecies].push_back(trim(name));
+            }
+        }
+    }
+}
+
+string getNextName(string species) {
+    if (!nameRepo[species].empty()) {
+        string n = nameRepo[species].back();
+        nameRepo[species].pop_back();
+        return n;
+    }
+    return "Unnamed";
+}
+
+Animal* animalFactory(string species, string name, int age, string gender) {
+    if (species == "hyena") return new Hyena(name, age, gender);
+    if (species == "lion")  return new Lion(name, age, gender);
+    if (species == "tiger") return new Tiger(name, age, gender);
+    if (species == "bear")  return new Bear(name, age, gender);
+    return nullptr;
+}
+
+void processAnimalLine(string line, AnimalList& list) {
+    stringstream ss(line);
+    string segment;
+    vector<string> chunks;
+
+    while (getline(ss, segment, ',')) {
+        chunks.push_back(trim(segment));
+    }
+
+    if (chunks.empty()) return;
+
+    // Parse first chunk: "4 year old female hyena"
+    stringstream firstChunk(chunks[0]);
+    int age;
+    string unit, label, gender, species;
+    firstChunk >> age >> unit >> label >> gender >> species;
+    
+    for (auto &c : species) c = tolower(c);
+
+    string name = getNextName(species);
+    Animal* newPet = animalFactory(species, name, age, gender);
+
+    if (newPet) {
+        list.addAnimal(newPet);
+    }
+}
+
+// ==========================================
+// 4. MAIN EXECUTION
+// ==========================================
+int main() {
+    loadNames("animalNames.txt");
+    AnimalList myZoo;
+
+    ifstream inputFile("arrivingAnimals.txt");
+    if (!inputFile) {
+        cout << "Error: arrivingAnimals.txt missing!" << endl;
+        return 1;
+    }
+
+    string line;
+    while (getline(inputFile, line)) {
+        if (!line.empty()) {
+            processAnimalLine(line, myZoo);
+        }
+    }
+    inputFile.close();
+
+    cout << "Success! Report generated in 'zooReport.txt'." << endl;
+    myZoo.generateReport("zooReport.txt");
+
+    return 0;
+}
