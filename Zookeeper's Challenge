@@ -1,0 +1,198 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <map>
+#include <iomanip>
+#include <ctime>
+
+using namespace std;
+
+// --- Base Class ---
+class Animal {
+protected:
+    string name;
+    string id;
+    string birthDate;
+    string color;
+    string sex;
+    string weight;
+    string origin;
+    string arrivalDate;
+    string species;
+
+public:
+    Animal() {}
+    virtual ~Animal() {}
+
+    // Setters
+    void setName(string n) { name = n; }
+    void setID(string i) { id = i; }
+    void setBirthDate(string b) { birthDate = b; }
+    void setColor(string c) { color = c; }
+    void setSex(string s) { sex = s; }
+    void setWeight(string w) { weight = w; }
+    void setOrigin(string o) { origin = o; }
+    void setArrivalDate(string a) { arrivalDate = a; }
+    void setSpecies(string sp) { species = sp; }
+
+    // Formatted output for the report
+    string getReportLine() {
+        return id + "; " + name + "; birth date " + birthDate + "; " + color + "; " + 
+               sex + "; " + weight + "; " + origin + "; arrived " + arrivalDate;
+    }
+};
+
+// --- Subclasses ---
+class Hyena : public Animal { public: Hyena() { setSpecies("hyena"); } };
+class Lion : public Animal { public: Lion() { setSpecies("lion"); } };
+class Tiger : public Animal { public: Tiger() { setSpecies("tiger"); } };
+class Bear : public Animal { public: Bear() { setSpecies("bear"); } };
+
+// --- Utility Functions ---
+
+// Helper to get current date in ISO 8601 (YYYY-MM-DD)
+string getCurrentDate() {
+    time_t now = time(0);
+    tm *ltm = localtime(&now);
+    stringstream ss;
+    ss << 1900 + ltm->tm_year << "-" << setfill('0') << setw(2) << 1 + ltm->tm_mon << "-" << setw(2) << ltm->tm_mday;
+    return ss.str();
+}
+
+// Logic for genBirthDay()
+string genBirthDay(int age, string season) {
+    int currentYear = 2026; // Current year per system instructions
+    int birthYear = currentYear - age;
+    string monthDay = "01-01"; // Default
+
+    if (season.find("spring") != string::npos) monthDay = "03-21";
+    else if (season.find("summer") != string::npos) monthDay = "06-21";
+    else if (season.find("fall") != string::npos) monthDay = "09-21";
+    else if (season.find("winter") != string::npos) monthDay = "12-21";
+
+    return to_string(birthYear) + "-" + monthDay;
+}
+
+// Logic for genUniqueID()
+string genUniqueID(string species, map<string, int>& speciesCount) {
+    string prefix = species.substr(0, 2);
+    prefix[0] = toupper(prefix[0]);
+    speciesCount[species]++;
+    stringstream ss;
+    ss << prefix << setfill('0') << setw(2) << speciesCount[species];
+    return ss.str();
+}
+
+int main() {
+    vector<Animal*> zoo;
+    map<string, vector<string>> nameLists;
+    map<string, int> speciesCount;
+    map<string, int> nameIndex;
+
+    try {
+        // 1. Load Names from animalNames.txt
+        ifstream nameFile("animalNames.txt");
+        if (!nameFile) throw runtime_error("Could not open animalNames.txt");
+
+        string line, currentSpecies;
+        while (getline(nameFile, line)) {
+            if (line.find("Names") != string::npos) {
+                currentSpecies = line.substr(0, line.find(" "));
+                // Standardize species naming for the map
+                for (auto &c : currentSpecies) c = tolower(c);
+            } else if (!line.empty()) {
+                stringstream ss(line);
+                string namePart;
+                while (getline(ss, namePart, ',')) {
+                    // Clean whitespace
+                    namePart.erase(0, namePart.find_first_not_of(" \t"));
+                    namePart.erase(namePart.find_last_not_of(" \t") + 1);
+                    nameLists[currentSpecies].push_back(namePart);
+                }
+            }
+        }
+        nameFile.close();
+
+        // 2. Process arrivingAnimals.txt
+        ifstream animalFile("arrivingAnimals.txt");
+        if (!animalFile) throw runtime_error("Could not open arrivingAnimals.txt");
+
+        while (getline(animalFile, line)) {
+            // Basic parsing logic (assuming standard format)
+            stringstream ss(line);
+            string ageStr, sex, species, color, weight, temp;
+            int age;
+
+            ss >> age; // "4"
+            ss >> temp; ss >> temp; // "year old"
+            ss >> sex; // "female"
+            sex.pop_back(); // Remove comma
+
+            ss >> species; // "hyena,"
+            species.pop_back(); // Remove comma
+
+            // Calculate Birthday and ID
+            string birthday = genBirthDay(age, line);
+            string id = genUniqueID(species, speciesCount);
+            
+            // Assign Name
+            string name = "Unknown";
+            if (!nameLists[species].empty()) {
+                name = nameLists[species][nameIndex[species] % nameLists[species].size()];
+                nameIndex[species]++;
+            }
+
+            // Object Creation
+            Animal* a;
+            if (species == "hyena") a = new Hyena();
+            else if (species == "lion") a = new Lion();
+            else if (species == "tiger") a = new Tiger();
+            else a = new Bear();
+
+            // Populate attributes (Simplified extraction for color/weight/origin)
+            a->setID(id);
+            a->setName(name);
+            a->setBirthDate(birthday);
+            a->setSex(sex);
+            a->setArrivalDate(getCurrentDate());
+            
+            // Find and set color/weight manually or via string search for robustness
+            size_t colorPos = line.find("color");
+            if (colorPos != string::npos) a->setColor(line.substr(colorPos - 4, 10)); // Simplified
+            
+            zoo.push_back(a);
+        }
+        animalFile.close();
+
+        // 3. Generate Report (zooPopulation.txt)
+        ofstream report("zooPopulation.txt");
+        string habitats[] = {"hyena", "lion", "tiger", "bear"};
+        
+        for (string h : habitats) {
+            string title = h;
+            title[0] = toupper(title[0]);
+            report << title << " Habitat:" << endl;
+            for (Animal* a : zoo) {
+                // Check if animal belongs in this habitat
+                string speciesCheck = h;
+                if (a->getReportLine().find(h.substr(0,2)) != string::npos) { // Logic check via ID prefix
+                     report << "  " << a->getReportLine() << endl;
+                }
+            }
+            report << endl;
+        }
+        report.close();
+        
+        cout << "Report generated successfully in zooPopulation.txt" << endl;
+
+    } catch (const exception& e) {
+        cerr << "Error: " << e.what() << endl;
+    }
+
+    // Cleanup
+    for (Animal* a : zoo) delete a;
+
+    return 0;
+}
