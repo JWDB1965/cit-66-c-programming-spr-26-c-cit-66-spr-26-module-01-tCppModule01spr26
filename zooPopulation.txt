@@ -1,0 +1,15 @@
+Hyena Habitat:
+  Hy01; Shenzi; birth date 2022-03-21; tan color; female; 70 pounds; from Friguia Park, Tunisia; arrived 2026-04-11
+  Hy02; Banzai; birth date 2014-09-21; brown color; male; 150 pounds; from Friguia Park, Tunisia; arrived 2026-04-11
+
+Lion Habitat:
+  Li01; Simba; birth date 2024-03-21; tan color; male; 300 pounds; from Zanzibar, Tanzania; arrived 2026-04-11
+  Li02; Mufasa; birth date 2021-06-21; tan color; female; 250 pounds; from Akagera National Park, Rwanda; arrived 2026-04-11
+
+Tiger Habitat:
+  Ti01; Shere Khan; birth date 2023-03-21; gold color; male; 400 pounds; from Dhaka, Bangladesh; arrived 2026-04-11
+  Ti02; Rajah; birth date 2019-09-21; gold color; female; 300 pounds; from Bardia National Park, Nepal; arrived 2026-04-11
+
+Bear Habitat:
+  Be01; Baloo; birth date 2016-03-21; black color; male; 500 pounds; from Yosemite, USA; arrived 2026-04-11
+  Be02; Yogi; birth date 2018-12-21; brown color; female; 450 pounds; from Denali, USA; arrived 2026-04-11
